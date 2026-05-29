@@ -24,6 +24,13 @@
     "plugins": [
       "expo-router",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "7e131bcb-9fdf-46e4-b8b7-c3f2c915e87a"
+      }
+    },
+    "owner": "pateldevarshi111"
   }
 }

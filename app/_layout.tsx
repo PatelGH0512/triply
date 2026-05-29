@@ -16,11 +16,12 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
-  const { setSession, setUser } = useAuthStore();
+  const { setSession, setUser, setLoading } = useAuthStore();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      setLoading(false);
     });
 
     const {

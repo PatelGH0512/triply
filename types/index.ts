@@ -177,6 +177,15 @@ export interface ExpenseSplit {
   user?: User;
 }
 
+export interface TripMemberWithUser extends Omit<TripMember, 'user'> {
+  users: Pick<User, 'id' | 'full_name' | 'avatar_url'> | null;
+}
+
+export interface TripWithDetails extends Trip {
+  trip_destinations: TripDestination[];
+  trip_members: TripMemberWithUser[];
+}
+
 export interface Notification {
   id: string;
   user_id: string;
