@@ -45,6 +45,11 @@ export enum ExpenseCategory {
   Other = 'other',
 }
 
+export enum VoteType {
+  Yay = 'yay',
+  Nay = 'nay',
+}
+
 export enum NotificationType {
   TripInvite = 'trip_invite',
   ActivityAdded = 'activity_added',

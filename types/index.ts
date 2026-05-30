@@ -5,6 +5,7 @@ import {
   ExpenseCategory,
   NotificationType,
   InviteStatus,
+  VoteType,
 } from '@/constants/enums';
 
 export interface User {
@@ -98,7 +99,7 @@ export interface ActivityMedia {
   id: string;
   activity_id: string;
   url: string;
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'pdf';
   uploaded_by: string;
   created_at: string;
 }
@@ -108,6 +109,14 @@ export interface ActivityLink {
   activity_id: string;
   title: string;
   url: string;
+  created_at: string;
+}
+
+export interface ActivityVote {
+  id: string;
+  activity_id: string;
+  user_id: string;
+  vote: VoteType;
   created_at: string;
 }
 

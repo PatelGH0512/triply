@@ -1,48 +1,87 @@
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useState, useEffect } from 'react';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { useTrip } from '@/hooks/useTrip';
+import { useTripStore } from '@/store/tripStore';
+import { TripProvider } from '@/lib/context/TripContext';
+import { useDays } from '@/hooks/useActivities';
+import { useTripRealtime } from '@/hooks/useRealtime';
+import TripHeader from '@/components/trip/TripHeader';
+import TripBottomNav, { TabName } from '@/components/trip/TripBottomNav';
+import OverviewScreen from './screens/overview';
+import MapScreen from './screens/map';
+import ChatScreen from './screens/chat';
+import AiScreen from './screens/ai';
+import ExpensesScreen from './screens/expenses';
 import Colors from '@/constants/colors';
 
-export default function TripScreen() {
-  const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: trip, isLoading } = useTrip(id);
+function TripShellContent({ tripId }: { tripId: string }) {
+  const [activeTab, setActiveTab] = useState<TabName>('overview');
+  const { data: days = [] } = useDays(tripId);
+  const dayIds = days.map((d) => d.id);
+
+  useTripRealtime(tripId, dayIds);
+
+  const renderScreen = () => {
+    switch (activeTab) {
+      case 'overview':
+        return <OverviewScreen />;
+      case 'map':
+        return <MapScreen />;
+      case 'chat':
+        return <ChatScreen />;
+      case 'ai':
+        return <AiScreen />;
+      case 'expenses':
+        return <ExpensesScreen />;
+    }
+  };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.push('/(app)/home')}>
-          <Text style={styles.backText}>← Home</Text>
-        </TouchableOpacity>
-      </View>
+    <View style={styles.shell}>
+      <TripHeader onAddMembers={() => {}} />
+      <View style={styles.screenArea}>{renderScreen()}</View>
+      <TripBottomNav activeTab={activeTab} onTabPress={setActiveTab} />
+    </View>
+  );
+}
 
-      {isLoading ? (
-        <View style={styles.center}>
-          <ActivityIndicator color={Colors.primary.coral} />
-        </View>
-      ) : (
-        <View style={styles.body}>
-          <Text style={styles.tripName}>{trip?.name ?? 'Trip'}</Text>
-          <Text style={styles.placeholder}>Activities coming in Phase 4</Text>
-        </View>
-      )}
-    </SafeAreaView>
+export default function TripScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const { data: trip, isLoading } = useTrip(id);
+  const { setActiveTrip } = useTripStore();
+
+  useEffect(() => {
+    if (trip) setActiveTrip(trip);
+  }, [trip]);
+
+  if (isLoading || !trip) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color={Colors.primary.coral} />
+      </View>
+    );
+  }
+
+  return (
+    <TripProvider tripId={id} trip={trip}>
+      <TripShellContent tripId={id} />
+    </TripProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.neutral.background },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutral.border,
-    backgroundColor: Colors.neutral.white,
+  loader: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.neutral.background,
   },
-  backText: { fontSize: 15, color: Colors.primary.coral, fontWeight: '600' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  body: { flex: 1, padding: 24, gap: 12 },
-  tripName: { fontSize: 28, fontWeight: '800', color: Colors.text.primary },
-  placeholder: { fontSize: 15, color: Colors.text.secondary },
+  shell: {
+    flex: 1,
+    backgroundColor: Colors.neutral.background,
+  },
+  screenArea: {
+    flex: 1,
+  },
 });
