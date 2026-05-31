@@ -14,7 +14,7 @@ export async function getDays(tripId: string): Promise<Day[]> {
 export async function getActivitiesByDay(dayId: string): Promise<Activity[]> {
   const { data, error } = await supabase
     .from('activities')
-    .select('*, activity_links(*), activity_media(*)')
+    .select('*, links:activity_links(*), media:activity_media(*)')
     .eq('day_id', dayId)
     .order('order', { ascending: true })
     .order('start_time', { ascending: true, nullsFirst: false })
@@ -26,7 +26,7 @@ export async function getActivitiesByDay(dayId: string): Promise<Activity[]> {
 export async function getActivitiesByTrip(tripId: string): Promise<Activity[]> {
   const { data, error } = await supabase
     .from('activities')
-    .select('*, activity_links(*), activity_media(*)')
+    .select('*, links:activity_links(*), media:activity_media(*)')
     .eq('trip_id', tripId)
     .order('order', { ascending: true });
   if (error || !data) return [];

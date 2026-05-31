@@ -10,21 +10,20 @@ export async function uploadMedia(
   mimeType: string,
 ): Promise<ActivityMedia | null> {
   const response = await fetch(uri);
-  const blob = await response.blob();
+  const arrayBuffer = await response.arrayBuffer();
 
-  if (blob.size > MAX_FILE_SIZE) {
+  if (arrayBuffer.byteLength > MAX_FILE_SIZE) {
     throw new Error('File size exceeds 10MB limit');
   }
 
-  const ext = fileName.split('.').pop() ?? 'bin';
   const uniqueName = `${Date.now()}_${fileName}`;
   const filePath = `activities/${activityId}/${uniqueName}`;
 
   const { error: uploadError } = await supabase.storage
     .from('activity-media')
-    .upload(filePath, blob, { contentType: mimeType, upsert: false });
+    .upload(filePath, arrayBuffer, { contentType: mimeType, upsert: false });
 
-  if (uploadError) return null;
+  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
   const { data: urlData } = supabase.storage.from('activity-media').getPublicUrl(filePath);
 
@@ -49,7 +48,7 @@ export async function uploadMedia(
     .select()
     .single();
 
-  if (error || !data) return null;
+  if (error || !data) throw new Error(`Failed to save media record: ${error?.message ?? 'unknown'}`);
   return data as ActivityMedia;
 }
 

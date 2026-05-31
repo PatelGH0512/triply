@@ -20,9 +20,9 @@ export async function uploadDocument(
   mimeType: string,
 ): Promise<Document | null> {
   const response = await fetch(uri);
-  const blob = await response.blob();
+  const arrayBuffer = await response.arrayBuffer();
 
-  if (blob.size > MAX_FILE_SIZE) {
+  if (arrayBuffer.byteLength > MAX_FILE_SIZE) {
     throw new Error('File size exceeds 10MB limit');
   }
 
@@ -31,9 +31,9 @@ export async function uploadDocument(
 
   const { error: uploadError } = await supabase.storage
     .from('trip-documents')
-    .upload(filePath, blob, { contentType: mimeType, upsert: false });
+    .upload(filePath, arrayBuffer, { contentType: mimeType, upsert: false });
 
-  if (uploadError) return null;
+  if (uploadError) throw new Error(`Storage upload failed: ${uploadError.message}`);
 
   const { data: urlData } = supabase.storage.from('trip-documents').getPublicUrl(filePath);
 
@@ -48,12 +48,12 @@ export async function uploadDocument(
       name: fileName,
       url: urlData.publicUrl,
       type: mimeType,
-      size: blob.size,
+      size: arrayBuffer.byteLength,
       uploaded_by: user?.id,
     })
     .select()
     .single();
 
-  if (error || !data) return null;
+  if (error || !data) throw new Error(`Failed to save document record: ${error?.message ?? 'unknown'}`);
   return data as Document;
 }

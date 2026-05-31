@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 
@@ -26,6 +26,11 @@ export function useRealtime(
 
 export function useTripRealtime(tripId: string, dayIds: string[]) {
   const queryClient = useQueryClient();
+  const dayIdsRef = useRef<string[]>(dayIds);
+
+  useEffect(() => {
+    dayIdsRef.current = dayIds;
+  });
 
   useEffect(() => {
     if (!tripId) return;
@@ -42,7 +47,7 @@ export function useTripRealtime(tripId: string, dayIds: string[]) {
           if (dayId) {
             queryClient.invalidateQueries({ queryKey: ['activities', dayId] });
           } else {
-            dayIds.forEach((id) =>
+            dayIdsRef.current.forEach((id) =>
               queryClient.invalidateQueries({ queryKey: ['activities', id] }),
             );
           }
@@ -84,5 +89,5 @@ export function useTripRealtime(tripId: string, dayIds: string[]) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [tripId, dayIds.join(',')]);
+  }, [tripId]);
 }
