@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { useAuthStore } from '@/store/authStore';
 import { useTrips, useDeleteOwnTrip } from '@/hooks/useTrip';
+import { useNotificationsRealtime } from '@/hooks/useRealtime';
+import { useNotifications } from '@/hooks/useNotifications';
+import { useNotificationStore } from '@/store/notificationStore';
 import TripCard from '@/components/trip/TripCard';
 import CreateTripSheet from '@/components/trip/CreateTripSheet';
+import NotificationBell from '@/components/notifications/NotificationBell';
+import NotificationToast from '@/components/notifications/NotificationToast';
 import EmptyState from '@/components/ui/EmptyState';
 import Avatar from '@/components/ui/Avatar';
 import { TripWithDetails } from '@/types';
@@ -22,19 +27,34 @@ import Colors from '@/constants/colors';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, session } = useAuthStore();
   const sheetRef = useRef<BottomSheet>(null);
+  const userId = session?.user?.id ?? '';
 
   const { data: trips, isLoading, refetch, isFetching } = useTrips();
   const { mutate: deleteTrip } = useDeleteOwnTrip();
+  const { data: notificationsData } = useNotifications();
+  const { setNotifications } = useNotificationStore();
 
-  const handleDelete = useCallback((tripId: string) => {
-    deleteTrip(tripId);
-  }, [deleteTrip]);
+  useNotificationsRealtime(userId);
 
-  const handleTripCreated = useCallback((tripId: string) => {
-    router.push(`/trip/${tripId}`);
-  }, [router]);
+  useEffect(() => {
+    if (notificationsData) setNotifications(notificationsData);
+  }, [notificationsData]);
+
+  const handleDelete = useCallback(
+    (tripId: string) => {
+      deleteTrip(tripId);
+    },
+    [deleteTrip],
+  );
+
+  const handleTripCreated = useCallback(
+    (tripId: string) => {
+      router.push(`/trip/${tripId}`);
+    },
+    [router],
+  );
 
   const renderSkeleton = () => (
     <View style={styles.skeletonCard}>
@@ -53,12 +73,10 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Text style={styles.logo}>triply</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.addBtn}
-            onPress={() => sheetRef.current?.expand()}
-          >
+          <TouchableOpacity style={styles.addBtn} onPress={() => sheetRef.current?.expand()}>
             <Text style={styles.addBtnText}>+ Add Trip</Text>
           </TouchableOpacity>
+          <NotificationBell />
           <TouchableOpacity onPress={() => router.push('/(app)/profile')}>
             <Avatar uri={user?.avatar_url} name={user?.full_name} size={36} />
           </TouchableOpacity>
@@ -88,16 +106,12 @@ export default function HomeScreen() {
               tintColor={Colors.primary.coral}
             />
           }
-          ListEmptyComponent={
-            <EmptyState
-              icon="🗺️"
-              title="No trips yet. Plan your first one."
-            />
-          }
+          ListEmptyComponent={<EmptyState icon="🗺️" title="No trips yet. Plan your first one." />}
         />
       )}
 
       <CreateTripSheet sheetRef={sheetRef} onCreated={handleTripCreated} />
+      <NotificationToast />
     </SafeAreaView>
   );
 }
@@ -134,7 +148,22 @@ const styles = StyleSheet.create({
     borderColor: Colors.neutral.border,
     marginBottom: 12,
   },
-  skeletonTitle: { height: 20, width: '60%', backgroundColor: Colors.neutral.border, borderRadius: 6 },
-  skeletonSubtitle: { height: 14, width: '80%', backgroundColor: Colors.neutral.borderLight, borderRadius: 6 },
-  skeletonBottom: { height: 14, width: '40%', backgroundColor: Colors.neutral.borderLight, borderRadius: 6 },
+  skeletonTitle: {
+    height: 20,
+    width: '60%',
+    backgroundColor: Colors.neutral.border,
+    borderRadius: 6,
+  },
+  skeletonSubtitle: {
+    height: 14,
+    width: '80%',
+    backgroundColor: Colors.neutral.borderLight,
+    borderRadius: 6,
+  },
+  skeletonBottom: {
+    height: 14,
+    width: '40%',
+    backgroundColor: Colors.neutral.borderLight,
+    borderRadius: 6,
+  },
 });

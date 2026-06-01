@@ -162,3 +162,31 @@ export async function generateDaysForTrip(
   if (error || !data) return [];
   return data as Day[];
 }
+
+export async function transferAdmin(
+  tripId: string,
+  currentAdminId: string,
+  newAdminId: string,
+): Promise<boolean> {
+  const { error: tripError } = await supabase
+    .from('trips')
+    .update({ admin_id: newAdminId })
+    .eq('id', tripId)
+    .eq('admin_id', currentAdminId);
+
+  if (tripError) return false;
+
+  await supabase
+    .from('trip_members')
+    .update({ role: MemberRole.Member })
+    .eq('trip_id', tripId)
+    .eq('user_id', currentAdminId);
+
+  await supabase
+    .from('trip_members')
+    .update({ role: MemberRole.Admin })
+    .eq('trip_id', tripId)
+    .eq('user_id', newAdminId);
+
+  return true;
+}

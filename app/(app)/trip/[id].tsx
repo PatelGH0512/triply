@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import BottomSheet from '@gorhom/bottom-sheet';
 import { useTrip } from '@/hooks/useTrip';
 import { useTripStore } from '@/store/tripStore';
 import { TripProvider } from '@/lib/context/TripContext';
@@ -8,6 +9,7 @@ import { useDays } from '@/hooks/useActivities';
 import { useTripRealtime } from '@/hooks/useRealtime';
 import TripHeader from '@/components/trip/TripHeader';
 import TripBottomNav, { TabName } from '@/components/trip/TripBottomNav';
+import InviteSheet from '@/components/invite/InviteSheet';
 import OverviewScreen from './screens/overview';
 import MapScreen from './screens/map';
 import ChatScreen from './screens/chat';
@@ -19,6 +21,7 @@ function TripShellContent({ tripId }: { tripId: string }) {
   const [activeTab, setActiveTab] = useState<TabName>('overview');
   const { data: days = [] } = useDays(tripId);
   const dayIds = days.map((d) => d.id);
+  const inviteSheetRef = useRef<BottomSheet>(null);
 
   useTripRealtime(tripId, dayIds);
 
@@ -39,9 +42,10 @@ function TripShellContent({ tripId }: { tripId: string }) {
 
   return (
     <View style={styles.shell}>
-      <TripHeader onAddMembers={() => {}} />
+      <TripHeader onAddMembers={() => inviteSheetRef.current?.expand()} />
       <View style={styles.screenArea}>{renderScreen()}</View>
       <TripBottomNav activeTab={activeTab} onTabPress={setActiveTab} />
+      <InviteSheet sheetRef={inviteSheetRef} />
     </View>
   );
 }

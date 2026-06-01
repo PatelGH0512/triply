@@ -14,6 +14,7 @@ export interface User {
   full_name: string;
   avatar_url: string | null;
   phone: string | null;
+  push_token: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -58,6 +59,7 @@ export interface TripInvite {
   invited_by: string;
   invited_email: string | null;
   invited_phone: string | null;
+  token: string;
   status: InviteStatus;
   created_at: string;
   expires_at: string | null;
@@ -188,6 +190,11 @@ export interface ExpenseSplit {
 
 export interface TripMemberWithUser extends Omit<TripMember, 'user'> {
   users: Pick<User, 'id' | 'full_name' | 'avatar_url'> | null;
+}
+
+export interface InviteWithDetails extends TripInvite {
+  trip: Trip & { trip_destinations: TripDestination[]; trip_members: TripMemberWithUser[] };
+  inviter: Pick<User, 'id' | 'full_name' | 'avatar_url'> | null;
 }
 
 export interface TripWithDetails extends Trip {

@@ -15,8 +15,10 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import { supabase } from '@/lib/supabase';
 import { createProfile, uploadAvatar } from '@/lib/api/auth';
+import { resolveInvite, INVITE_TOKEN_KEY } from '@/lib/api/invites';
 import { useAuthStore } from '@/store/authStore';
 import { profileSetupSchema, ProfileSetupForm, mapAuthError } from '@/lib/validations/auth';
 import Colors from '@/constants/colors';
@@ -84,6 +86,18 @@ export default function ProfileSetupScreen() {
     }
 
     setUser(profile);
+
+    const pendingToken = await SecureStore.getItemAsync(INVITE_TOKEN_KEY);
+    if (pendingToken) {
+      const result = await resolveInvite(pendingToken, userId);
+      await SecureStore.deleteItemAsync(INVITE_TOKEN_KEY);
+      if (result.success && result.tripId) {
+        router.replace(`/trip/${result.tripId}` as any);
+        setLoading(false);
+        return;
+      }
+    }
+
     router.replace('/(app)/home');
     setLoading(false);
   };

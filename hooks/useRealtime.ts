@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
+import { useNotificationStore } from '@/store/notificationStore';
+import { Notification } from '@/types';
 
 export function useRealtime(
   channel: string,
@@ -90,4 +92,38 @@ export function useTripRealtime(tripId: string, dayIds: string[]) {
       supabase.removeChannel(channel);
     };
   }, [tripId]);
+}
+
+export function useNotificationsRealtime(userId: string) {
+  const queryClient = useQueryClient();
+  const { addNotification, incrementUnread, showToast } = useNotificationStore();
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`notifications-${userId}`)
+      .on(
+        'postgres_changes' as any,
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload: any) => {
+          const notification = payload.new as Notification;
+          addNotification(notification);
+          incrementUnread();
+          showToast(notification);
+          queryClient.invalidateQueries({ queryKey: ['notifications', userId] });
+          queryClient.invalidateQueries({ queryKey: ['unreadCount', userId] });
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
 }
