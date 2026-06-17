@@ -53,6 +53,7 @@ export function useTripRealtime(tripId: string, dayIds: string[]) {
               queryClient.invalidateQueries({ queryKey: ['activities', id] }),
             );
           }
+          queryClient.invalidateQueries({ queryKey: ['itineraryPins', tripId] });
         },
       )
       .on(
@@ -101,8 +102,9 @@ export function useNotificationsRealtime(userId: string) {
   useEffect(() => {
     if (!userId) return;
 
+    const channelName = `notifications-${userId}-${Date.now()}`;
     const channel = supabase
-      .channel(`notifications-${userId}`)
+      .channel(channelName)
       .on(
         'postgres_changes' as any,
         {

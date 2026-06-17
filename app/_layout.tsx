@@ -39,8 +39,12 @@ async function registerForPushNotifications(): Promise<string | null> {
     });
   }
 
-  const token = await Notifications.getExpoPushTokenAsync();
-  return token.data;
+  try {
+    const token = await Notifications.getExpoPushTokenAsync();
+    return token.data;
+  } catch {
+    return null;
+  }
 }
 
 async function upsertPushToken(userId: string, pushToken: string) {
@@ -96,11 +100,13 @@ export default function RootLayout() {
   useEffect(() => {
     if (!session?.user?.id) return;
 
-    registerForPushNotifications().then((pushToken) => {
-      if (pushToken) {
-        upsertPushToken(session.user.id, pushToken);
-      }
-    });
+    registerForPushNotifications()
+      .then((pushToken) => {
+        if (pushToken) {
+          upsertPushToken(session.user.id, pushToken);
+        }
+      })
+      .catch(() => {});
 
     notificationResponseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {

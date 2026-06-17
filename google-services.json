@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "963667439012",
+    "project_id": "triply-55555",
+    "storage_bucket": "triply-55555.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:963667439012:android:59aeb5fbcc34bdecd82531",
+        "android_client_info": {
+          "package_name": "com.pateldevarshi111.triply"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzSD3ZHztNzBM_MdwADyO2L1q3dXDgPvk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
