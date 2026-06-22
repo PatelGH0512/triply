@@ -1,38 +1,55 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
+import { colors, shadows, typography } from '@/constants/tokens';
 
-const AVATAR_COLORS = [
-  '#FF6B6B', '#06D6A0', '#118AB2', '#FFD166',
-  '#9B59B6', '#E67E22', '#2ECC71', '#E74C3C',
+export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl';
+
+const SIZE_MAP: Record<AvatarSize, number> = {
+  sm: 24,
+  md: 32,
+  lg: 40,
+  xl: 56,
+};
+
+const WARM_COLORS = [
+  '#FF6B4A',
+  '#F5A623',
+  '#E8845A',
+  '#D4713E',
+  '#C4623A',
+  '#E07848',
+  '#F08C5A',
+  '#B85C30',
 ];
 
-function getColorFromName(name: string): string {
+function getWarmColor(name: string): string {
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  return WARM_COLORS[Math.abs(hash) % WARM_COLORS.length];
 }
 
 interface AvatarProps {
   uri?: string | null;
   name?: string | null;
-  size?: number;
+  size?: AvatarSize | number;
 }
 
-export default function Avatar({ uri, name = '', size = 36 }: AvatarProps) {
+export default function Avatar({ uri, name = '', size = 'md' }: AvatarProps) {
+  const px = typeof size === 'number' ? size : SIZE_MAP[size];
   const initials = (name ?? '')
     .split(' ')
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase() ?? '')
     .join('');
-  const bg = getColorFromName(name ?? '');
-  const fontSize = size * 0.38;
+  const bg = getWarmColor(name ?? '');
+  const fontSize = px * 0.38;
 
   if (uri) {
     return (
       <Image
         source={{ uri }}
-        style={[styles.base, { width: size, height: size, borderRadius: size / 2 }]}
+        style={[styles.base, { width: px, height: px, borderRadius: px / 2 }]}
       />
     );
   }
@@ -42,7 +59,8 @@ export default function Avatar({ uri, name = '', size = 36 }: AvatarProps) {
       style={[
         styles.base,
         styles.fallback,
-        { width: size, height: size, borderRadius: size / 2, backgroundColor: bg },
+        { width: px, height: px, borderRadius: px / 2, backgroundColor: bg },
+        shadows.sm,
       ]}
     >
       <Text style={[styles.initials, { fontSize }]}>{initials || '?'}</Text>
@@ -51,7 +69,14 @@ export default function Avatar({ uri, name = '', size = 36 }: AvatarProps) {
 }
 
 const styles = StyleSheet.create({
-  base: { overflow: 'hidden' },
+  base: {
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.neutral[0],
+  },
   fallback: { alignItems: 'center', justifyContent: 'center' },
-  initials: { color: '#fff', fontWeight: '700' },
+  initials: {
+    color: colors.neutral[0],
+    fontFamily: typography.fonts.semibold,
+  },
 });

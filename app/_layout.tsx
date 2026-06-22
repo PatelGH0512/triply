@@ -1,4 +1,11 @@
 import { useEffect, useRef } from 'react';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  useFonts,
+} from '@expo-google-fonts/inter';
 import { Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -7,6 +14,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import * as Linking from 'expo-linking';
 import * as SecureStore from 'expo-secure-store';
+import { ToastProvider } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { INVITE_TOKEN_KEY } from '@/lib/api/invites';
@@ -61,6 +69,13 @@ const queryClient = new QueryClient({
 });
 
 export default function RootLayout() {
+  const [fontsLoaded] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+  });
+
   const { setSession, setUser, setLoading, session } = useAuthStore();
   const router = useRouter();
   const notificationResponseListener = useRef<Notifications.EventSubscription | null>(null);
@@ -127,11 +142,15 @@ export default function RootLayout() {
     };
   }, [session?.user?.id]);
 
+  if (!fontsLoaded) return null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
-        <StatusBar style="auto" />
-        <Stack screenOptions={{ headerShown: false }} />
+        <ToastProvider>
+          <StatusBar style="auto" />
+          <Stack screenOptions={{ headerShown: false }} />
+        </ToastProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
   );

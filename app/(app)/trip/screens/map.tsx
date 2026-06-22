@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Animated } from 'react-native';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,9 +18,11 @@ import PlaceSearchBar from '@/components/map/PlaceSearchBar';
 import PlaceDetailSheet from '@/components/map/PlaceDetailSheet';
 import AddToTripSheet from '@/components/map/AddToTripSheet';
 import Colors from '@/constants/colors';
+import { NAV_TOTAL_HEIGHT } from '@/components/trip/TripBottomNav';
 
 export default function MapScreen() {
   const { tripId, trip } = useTripContext();
+  const insets = useSafeAreaInsets();
   const destinations: TripDestination[] = [...(trip.trip_destinations ?? [])].sort(
     (a, b) => a.order - b.order,
   );
@@ -174,7 +177,7 @@ export default function MapScreen() {
       )}
 
       <TouchableOpacity
-        style={styles.itineraryToggle}
+        style={[styles.itineraryToggle, { bottom: NAV_TOTAL_HEIGHT + insets.bottom + 8 }]}
         onPress={() => setShowItinerary((v) => !v)}
         activeOpacity={0.85}
       >
@@ -252,7 +255,6 @@ const styles = StyleSheet.create({
   },
   itineraryToggle: {
     position: 'absolute',
-    bottom: 20,
     left: 16,
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -30,6 +31,7 @@ import { useAuthStore } from '@/store/authStore';
 import ActivityIconPicker from '@/components/activity/ActivityIconPicker';
 import MediaThumbnail from '@/components/ui/MediaThumbnail';
 import Colors from '@/constants/colors';
+import { NAV_TOTAL_HEIGHT } from '@/components/trip/TripBottomNav';
 
 interface PendingMedia {
   uri: string;
@@ -60,6 +62,7 @@ export default function ActivityBottomSheet({
 }: ActivityBottomSheetProps) {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const insets = useSafeAreaInsets();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [pendingMedia, setPendingMedia] = useState<PendingMedia[]>([]);
@@ -235,7 +238,10 @@ export default function ActivityBottomSheet({
       handleIndicatorStyle={styles.handle}
     >
       <BottomSheetScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: NAV_TOTAL_HEIGHT + insets.bottom + 16 },
+        ]}
         keyboardShouldPersistTaps="always"
       >
         <View style={styles.sheetHeader}>
@@ -502,7 +508,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
   },
   handle: { backgroundColor: Colors.neutral.border, width: 40 },
-  content: { padding: 24, paddingBottom: 60 },
+  content: { padding: 24 },
   sheetHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',

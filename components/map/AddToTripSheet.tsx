@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -25,6 +26,7 @@ import { useAddActivityFromMap } from '@/hooks/useMap';
 import { useAuthStore } from '@/store/authStore';
 import ActivityIconPicker from '@/components/activity/ActivityIconPicker';
 import Colors from '@/constants/colors';
+import { NAV_TOTAL_HEIGHT } from '@/components/trip/TripBottomNav';
 
 interface AddToTripSheetProps {
   sheetRef: React.RefObject<BottomSheet | null>;
@@ -33,15 +35,11 @@ interface AddToTripSheetProps {
   onAdded: (dayLabel: string) => void;
 }
 
-const SNAP_POINTS = ['80%'];
+const SNAP_POINTS = ['85%', '95%'];
 
-export default function AddToTripSheet({
-  sheetRef,
-  tripId,
-  place,
-  onAdded,
-}: AddToTripSheetProps) {
+export default function AddToTripSheet({ sheetRef, tripId, place, onAdded }: AddToTripSheetProps) {
   const { user } = useAuthStore();
+  const insets = useSafeAreaInsets();
   const { data: days = [] } = useDays(tripId);
   const addActivity = useAddActivityFromMap();
 
@@ -150,7 +148,10 @@ export default function AddToTripSheet({
       handleIndicatorStyle={styles.handle}
     >
       <BottomSheetScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: NAV_TOTAL_HEIGHT + insets.bottom + 16 },
+        ]}
         keyboardShouldPersistTaps="handled"
       >
         {step === 1 ? (
@@ -281,7 +282,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
   },
   handle: { backgroundColor: Colors.neutral.border, width: 40 },
-  content: { padding: 20, paddingBottom: 48, gap: 16 },
+  content: { padding: 20, gap: 16 },
   sheetTitle: {
     fontSize: 20,
     fontWeight: '800',

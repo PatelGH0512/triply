@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import Avatar from '@/components/ui/Avatar';
 import { TripMemberWithUser } from '@/types';
-import Colors from '@/constants/colors';
+import { colors, typography } from '@/constants/tokens';
 
 interface MemberAvatarStackProps {
   members: TripMemberWithUser[];
@@ -20,19 +20,13 @@ export default function MemberAvatarStack({ members, max = 4, size = 28 }: Membe
         <View
           key={member.id}
           style={[
-            styles.avatarWrap,
             {
               marginLeft: i === 0 ? 0 : -overlap,
               zIndex: visible.length - i,
-              borderRadius: size / 2,
             },
           ]}
         >
-          <Avatar
-            uri={member.users?.avatar_url}
-            name={member.users?.full_name ?? ''}
-            size={size}
-          />
+          <Avatar uri={member.users?.avatar_url} name={member.users?.full_name ?? ''} size={size} />
         </View>
       ))}
       {overflow > 0 && (
@@ -51,13 +45,15 @@ export default function MemberAvatarStack({ members, max = 4, size = 28 }: Membe
 
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center' },
-  avatarWrap: { borderWidth: 2, borderColor: Colors.neutral.white },
   overflow: {
-    backgroundColor: Colors.neutral.border,
+    backgroundColor: colors.neutral[200],
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: Colors.neutral.white,
+    borderWidth: 1.5,
+    borderColor: colors.neutral[0],
   },
-  overflowText: { color: Colors.text.secondary, fontWeight: '700' },
+  overflowText: {
+    color: colors.neutral[600],
+    fontFamily: typography.fonts.bold,
+  },
 });

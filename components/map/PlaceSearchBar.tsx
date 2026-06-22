@@ -64,7 +64,7 @@ export default function PlaceSearchBar({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 0,
+    top: 12,
     left: 0,
     right: 0,
     zIndex: 10,

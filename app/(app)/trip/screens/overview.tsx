@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ScrollView,
   View,
@@ -17,9 +18,11 @@ import ActivityBottomSheet from '@/components/activity/ActivityBottomSheet';
 import DocumentsSheet from '@/components/trip/DocumentsSheet';
 import PackingListSheet from '@/components/trip/PackingListSheet';
 import Colors from '@/constants/colors';
+import { NAV_TOTAL_HEIGHT } from '@/components/trip/TripBottomNav';
 
 export default function OverviewScreen() {
   const { tripId } = useTripContext();
+  const insets = useSafeAreaInsets();
   const { data: days = [], isLoading } = useDays(tripId);
 
   const activitySheetRef = useRef<BottomSheet>(null);
@@ -48,7 +51,10 @@ export default function OverviewScreen() {
     <>
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[
+          styles.content,
+          { paddingBottom: NAV_TOTAL_HEIGHT + insets.bottom + 8 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.quickAccess}>
@@ -123,7 +129,6 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     gap: 20,
-    paddingBottom: 32,
   },
   quickAccess: {
     flexDirection: 'row',

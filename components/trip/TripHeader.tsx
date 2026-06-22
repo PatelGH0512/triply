@@ -13,9 +13,10 @@ import { useTripStore } from '@/store/tripStore';
 
 interface TripHeaderProps {
   onAddMembers: () => void;
+  showActions?: boolean;
 }
 
-export default function TripHeader({ onAddMembers }: TripHeaderProps) {
+export default function TripHeader({ onAddMembers, showActions = true }: TripHeaderProps) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { trip, isAdmin } = useTripContext();
@@ -32,11 +33,7 @@ export default function TripHeader({ onAddMembers }: TripHeaderProps) {
     if (isAdmin) {
       await supabase.from('trips').delete().eq('id', trip.id);
     } else {
-      await supabase
-        .from('trip_members')
-        .delete()
-        .eq('trip_id', trip.id)
-        .eq('user_id', user?.id);
+      await supabase.from('trip_members').delete().eq('trip_id', trip.id).eq('user_id', user?.id);
     }
     removeTrip(trip.id);
     queryClient.invalidateQueries({ queryKey: ['trips'] });
@@ -59,14 +56,16 @@ export default function TripHeader({ onAddMembers }: TripHeaderProps) {
           {trip.name}
         </Text>
 
-        <View style={styles.rightRow}>
-          <TouchableOpacity style={styles.iconBtn} onPress={onAddMembers}>
-            <Ionicons name="person-add-outline" size={20} color={Colors.primary.coral} />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => setMenuVisible(true)}>
-            <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.secondary} />
-          </TouchableOpacity>
-        </View>
+        {showActions && (
+          <View style={styles.rightRow}>
+            <TouchableOpacity style={styles.iconBtn} onPress={onAddMembers}>
+              <Ionicons name="person-add-outline" size={20} color={Colors.primary.coral} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.iconBtn} onPress={() => setMenuVisible(true)}>
+              <Ionicons name="ellipsis-horizontal" size={20} color={Colors.text.secondary} />
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
 
       <Modal
