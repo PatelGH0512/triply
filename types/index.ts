@@ -57,12 +57,9 @@ export interface TripInvite {
   id: string;
   trip_id: string;
   invited_by: string;
-  invited_email: string | null;
-  invited_phone: string | null;
-  token: string;
+  invited_email: string;
   status: InviteStatus;
   created_at: string;
-  expires_at: string | null;
 }
 
 export interface Day {
@@ -157,9 +154,17 @@ export interface Message {
   id: string;
   trip_id: string;
   user_id: string;
-  content: string;
+  body: string | null;
+  image_url: string | null;
+  reply_to_id: string | null;
+  is_deleted: boolean;
+  is_edited: boolean;
   created_at: string;
-  user?: User;
+  updated_at: string;
+  sender?: Pick<User, 'id' | 'full_name' | 'avatar_url'>;
+  reply_to?: Pick<Message, 'id' | 'body' | 'image_url' | 'is_deleted' | 'user_id'> & {
+    sender?: Pick<User, 'id' | 'full_name' | 'avatar_url'>;
+  };
 }
 
 export interface Expense {

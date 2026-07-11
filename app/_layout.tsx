@@ -12,12 +12,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import * as Linking from 'expo-linking';
-import * as SecureStore from 'expo-secure-store';
 import { ToastProvider } from '@/components/ui/Toast';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import { INVITE_TOKEN_KEY } from '@/lib/api/invites';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -96,20 +93,6 @@ export default function RootLayout() {
     });
 
     return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      const initialUrl = await Linking.getInitialURL();
-      if (initialUrl) {
-        const parsed = Linking.parse(initialUrl);
-        const token =
-          (parsed.queryParams?.token as string | undefined) ?? parsed.path?.split('/invite/')?.[1];
-        if (token) {
-          await SecureStore.setItemAsync(INVITE_TOKEN_KEY, token);
-        }
-      }
-    })();
   }, []);
 
   useEffect(() => {

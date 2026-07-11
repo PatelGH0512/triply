@@ -3,9 +3,9 @@ import {
   createInvite,
   getInvites,
   resendInvite,
-  resolveInvite,
-  getInviteByToken,
-  InviteContactType,
+  getPendingInvitesForEmail,
+  acceptInvite,
+  declineInvite,
 } from '@/lib/api/invites';
 import { useAuthStore } from '@/store/authStore';
 
@@ -23,8 +23,7 @@ export function useCreateInvite(tripId: string) {
   const invitedBy = session?.user?.id ?? '';
 
   return useMutation({
-    mutationFn: ({ contact, type }: { contact: string; type: InviteContactType }) =>
-      createInvite(tripId, invitedBy, contact, type),
+    mutationFn: ({ email }: { email: string }) => createInvite(tripId, invitedBy, email),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invites', tripId] });
     },
@@ -50,17 +49,32 @@ export function useResendInvite(tripId: string) {
   });
 }
 
-export function useResolveInvite() {
-  return useMutation({
-    mutationFn: ({ token, userId }: { token: string; userId: string }) =>
-      resolveInvite(token, userId),
+export function usePendingInvites(email: string | undefined | null) {
+  return useQuery({
+    queryKey: ['pending-invites', email],
+    queryFn: () => getPendingInvitesForEmail(),
+    enabled: !!email,
   });
 }
 
-export function useInviteByToken(token: string) {
-  return useQuery({
-    queryKey: ['invite', token],
-    queryFn: () => getInviteByToken(token),
-    enabled: !!token,
+export function useAcceptInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inviteId, userId }: { inviteId: string; userId: string }) =>
+      acceptInvite(inviteId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-invites'] });
+      queryClient.invalidateQueries({ queryKey: ['trips'] });
+    },
+  });
+}
+
+export function useDeclineInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ inviteId }: { inviteId: string }) => declineInvite(inviteId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-invites'] });
+    },
   });
 }

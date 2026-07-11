@@ -19,20 +19,14 @@ export default function InviteeRow({
   status = 'idle',
   showRemove = false,
 }: InviteeRowProps) {
-  const getInputType = (val: string) => {
-    if (val.includes('@')) return 'email';
-    if (/^\+?[\d\s\-()]{7,}$/.test(val)) return 'phone';
-    return null;
-  };
-
-  const contactType = getInputType(value);
+  const isEmail = value.includes('@');
 
   return (
     <View style={styles.row}>
       <View style={[styles.inputWrap, status === 'failed' && styles.inputWrapError]}>
         <TextInput
           style={styles.input}
-          placeholder="Phone or email"
+          placeholder="name@email.com"
           placeholderTextColor={Colors.neutral.placeholder}
           value={value}
           onChangeText={onChange}
@@ -41,13 +35,9 @@ export default function InviteeRow({
           autoCorrect={false}
           editable={status !== 'sending' && status !== 'sent'}
         />
-        {contactType && status === 'idle' && (
+        {isEmail && status === 'idle' && (
           <View style={styles.typeBadge}>
-            <Ionicons
-              name={contactType === 'email' ? 'mail-outline' : 'call-outline'}
-              size={14}
-              color={Colors.text.tertiary}
-            />
+            <Ionicons name="mail-outline" size={14} color={Colors.text.tertiary} />
           </View>
         )}
         {status === 'sent' && (

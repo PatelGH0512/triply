@@ -20,7 +20,9 @@ import TripCard from '@/components/trip/TripCard';
 import CreateTripSheet from '@/components/trip/CreateTripSheet';
 import NotificationBell from '@/components/notifications/NotificationBell';
 import NotificationToast from '@/components/notifications/NotificationToast';
+import PendingInviteDialog from '@/components/invite/PendingInviteDialog';
 import EmptyState from '@/components/ui/EmptyState';
+import GrainOverlay from '@/components/ui/GrainOverlay';
 import Avatar from '@/components/ui/Avatar';
 import { TripWithDetails } from '@/types';
 import Colors from '@/constants/colors';
@@ -70,6 +72,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <GrainOverlay />
       <View style={styles.header}>
         <Text style={styles.logo}>triply</Text>
         <View style={styles.headerRight}>
@@ -112,6 +115,7 @@ export default function HomeScreen() {
 
       <CreateTripSheet sheetRef={sheetRef} onCreated={handleTripCreated} />
       <NotificationToast />
+      <PendingInviteDialog />
     </SafeAreaView>
   );
 }

@@ -1,6 +1,6 @@
 const Colors = {
   primary: {
-    coral: '#FF6B6B',
+    coral: '#ff6b6b',
     coralLight: '#FF8E8E',
     coralDark: '#E55555',
     coralFaded: '#FFE8E8',

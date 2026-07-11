@@ -2,26 +2,27 @@ import { supabase } from '../supabase';
 import { TripInvite, InviteWithDetails } from '@/types';
 import { InviteStatus } from '@/constants/enums';
 
-export const INVITE_TOKEN_KEY = 'pending_invite_token';
-
-export type InviteContactType = 'sms' | 'email';
-
 export async function createInvite(
   tripId: string,
   invitedBy: string,
-  contact: string,
-  type: InviteContactType,
+  email: string,
 ): Promise<TripInvite | null> {
-  const token = crypto.randomUUID();
-  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const { data: existing } = await supabase
+    .from('trip_invites')
+    .select('*')
+    .eq('trip_id', tripId)
+    .eq('invited_email', normalizedEmail)
+    .eq('status', InviteStatus.Pending)
+    .maybeSingle();
+
+  if (existing) return existing as TripInvite;
 
   const inviteData = {
     trip_id: tripId,
     invited_by: invitedBy,
-    invited_email: type === 'email' ? contact : null,
-    invited_phone: type === 'sms' ? contact : null,
-    token,
-    expires_at: expiresAt,
+    invited_email: normalizedEmail,
     status: InviteStatus.Pending,
   };
 
@@ -47,12 +48,9 @@ export async function createInvite(
 
   await supabase.functions.invoke('send-invite', {
     body: {
-      token,
-      contact,
-      type,
+      email: normalizedEmail,
       tripName: tripData?.name ?? 'a trip',
       inviterName: inviterData?.full_name ?? 'Someone',
-      expiresAt,
     },
   });
 
@@ -75,71 +73,48 @@ export async function resendInvite(
   inviterName: string,
   tripName: string,
 ): Promise<void> {
-  const newExpiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-
   const { data: invite } = await supabase
     .from('trip_invites')
-    .update({ status: InviteStatus.Pending, expires_at: newExpiresAt })
+    .update({ status: InviteStatus.Pending })
     .eq('id', inviteId)
     .select()
     .single();
 
-  if (!invite) return;
+  if (!invite || !invite.invited_email) return;
 
-  const contact = invite.invited_email ?? invite.invited_phone;
-  const type: InviteContactType = invite.invited_email ? 'email' : 'sms';
-
-  if (contact) {
-    await supabase.functions.invoke('send-invite', {
-      body: {
-        token: invite.token,
-        contact,
-        type,
-        tripName,
-        inviterName,
-        expiresAt: newExpiresAt,
-      },
-    });
-  }
+  await supabase.functions.invoke('send-invite', {
+    body: {
+      email: invite.invited_email,
+      tripName,
+      inviterName,
+    },
+  });
 }
 
-export async function resolveInvite(
-  token: string,
+export async function getPendingInvitesForEmail(): Promise<InviteWithDetails[]> {
+  const { data, error } = await supabase.functions.invoke('get-my-invites');
+
+  if (error || !data?.invites) return [];
+  return data.invites as InviteWithDetails[];
+}
+
+export async function acceptInvite(
+  inviteId: string,
   userId: string,
 ): Promise<{ success: boolean; tripId?: string; error?: string }> {
-  const { data, error } = await supabase.functions.invoke('resolve-invite', {
-    body: { token, userId },
+  const { data, error } = await supabase.functions.invoke('accept-invite', {
+    body: { inviteId, userId },
   });
 
   if (error) return { success: false, error: 'network_error' };
-
   if (data?.error) return { success: false, error: data.error };
 
   return { success: true, tripId: data?.tripId };
 }
 
-export async function getInviteByToken(token: string): Promise<InviteWithDetails | null> {
-  const { data, error } = await supabase
-    .from('trip_invites')
-    .select(`
-      *,
-      trip:trips(
-        *,
-        trip_destinations(*),
-        trip_members(*, users(id, full_name, avatar_url))
-      ),
-      inviter:users!trip_invites_invited_by_fkey(id, full_name, avatar_url)
-    `)
-    .eq('token', token)
-    .single();
-
-  if (error || !data) return null;
-  return data as unknown as InviteWithDetails;
-}
-
-export async function declineInvite(token: string): Promise<void> {
+export async function declineInvite(inviteId: string): Promise<void> {
   await supabase
     .from('trip_invites')
     .update({ status: InviteStatus.Declined })
-    .eq('token', token);
+    .eq('id', inviteId);
 }

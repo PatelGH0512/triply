@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { Ionicons } from '@expo/vector-icons';
-import dayjs from 'dayjs';
 import Avatar from '@/components/ui/Avatar';
 import InviteeRow, { InviteeStatus } from '@/components/invite/InviteeRow';
 import { useInvites, useCreateInvite, useResendInvite } from '@/hooks/useInvites';
@@ -19,7 +18,6 @@ import { useAuthStore } from '@/store/authStore';
 import { getTripMembers, transferAdmin } from '@/lib/api/trips';
 import { TripMember } from '@/types';
 import { MemberRole, InviteStatus } from '@/constants/enums';
-import { InviteContactType } from '@/lib/api/invites';
 import Colors from '@/constants/colors';
 
 interface InviteeEntry {
@@ -32,21 +30,9 @@ interface InviteSheetProps {
   sheetRef: React.RefObject<BottomSheet | null>;
 }
 
-function detectType(val: string): InviteContactType {
-  return val.includes('@') ? 'email' : 'sms';
-}
-
-function isValidContact(val: string): boolean {
+function isValidEmail(val: string): boolean {
   const emailReg = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  const phoneReg = /^\+?[\d\s\-()]{7,}$/;
-  return emailReg.test(val) || phoneReg.test(val.replace(/\s/g, ''));
-}
-
-function expiresInHours(expiresAt: string | null): string {
-  if (!expiresAt) return '';
-  const diff = dayjs(expiresAt).diff(dayjs(), 'hour');
-  if (diff <= 0) return 'expired';
-  return `${diff}h`;
+  return emailReg.test(val.trim());
 }
 
 export default function InviteSheet({ sheetRef }: InviteSheetProps) {
@@ -102,9 +88,9 @@ export default function InviteSheet({ sheetRef }: InviteSheetProps) {
     const filledRows = invitees.filter((r) => r.value.trim().length > 0);
     if (filledRows.length === 0) return;
 
-    const invalidRows = filledRows.filter((r) => !isValidContact(r.value.trim()));
+    const invalidRows = filledRows.filter((r) => !isValidEmail(r.value.trim()));
     if (invalidRows.length > 0) {
-      Alert.alert('Invalid contact', 'Please check the phone or email format and try again.');
+      Alert.alert('Invalid email', 'Please enter valid email addresses and try again.');
       return;
     }
 
@@ -114,9 +100,8 @@ export default function InviteSheet({ sheetRef }: InviteSheetProps) {
       filledRows.map(async (row) => {
         setRowStatus(row.id, 'sending');
         try {
-          const contact = row.value.trim();
-          const type = detectType(contact);
-          const result = await createInvite({ contact, type });
+          const email = row.value.trim();
+          const result = await createInvite({ email });
           setRowStatus(row.id, result ? 'sent' : 'failed');
         } catch {
           setRowStatus(row.id, 'failed');
@@ -254,36 +239,20 @@ export default function InviteSheet({ sheetRef }: InviteSheetProps) {
           {pendingInvites.length > 0 && (
             <>
               <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Pending Invites</Text>
-              {pendingInvites.map((inv) => {
-                const contact = inv.invited_email ?? inv.invited_phone ?? '—';
-                const hoursLeft = expiresInHours(inv.expires_at);
-                const isExpired = hoursLeft === 'expired';
-                return (
-                  <View key={inv.id} style={styles.pendingRow}>
-                    <Ionicons
-                      name={inv.invited_email ? 'mail-outline' : 'call-outline'}
-                      size={16}
-                      color={Colors.text.tertiary}
-                    />
-                    <View style={styles.pendingInfo}>
-                      <Text style={styles.pendingContact} numberOfLines={1}>
-                        {contact}
-                      </Text>
-                      <Text style={[styles.pendingStatus, isExpired && styles.pendingExpired]}>
-                        {isExpired ? 'Expired' : `Pending · expires in ${hoursLeft}`}
-                      </Text>
-                    </View>
-                    {isExpired && (
-                      <TouchableOpacity
-                        onPress={() => handleResend(inv.id)}
-                        style={styles.resendBtn}
-                      >
-                        <Text style={styles.resendText}>Resend</Text>
-                      </TouchableOpacity>
-                    )}
+              {pendingInvites.map((inv) => (
+                <View key={inv.id} style={styles.pendingRow}>
+                  <Ionicons name="mail-outline" size={16} color={Colors.text.tertiary} />
+                  <View style={styles.pendingInfo}>
+                    <Text style={styles.pendingContact} numberOfLines={1}>
+                      {inv.invited_email}
+                    </Text>
+                    <Text style={styles.pendingStatus}>Pending · awaiting sign-up</Text>
                   </View>
-                );
-              })}
+                  <TouchableOpacity onPress={() => handleResend(inv.id)} style={styles.resendBtn}>
+                    <Text style={styles.resendText}>Resend</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
             </>
           )}
         </BottomSheetScrollView>
@@ -394,7 +363,6 @@ const styles = StyleSheet.create({
   pendingInfo: { flex: 1 },
   pendingContact: { fontSize: 14, color: Colors.text.primary, fontWeight: '500' },
   pendingStatus: { fontSize: 12, color: Colors.text.tertiary, marginTop: 2 },
-  pendingExpired: { color: Colors.status.error },
   resendBtn: {
     paddingHorizontal: 12,
     paddingVertical: 5,
