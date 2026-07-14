@@ -87,6 +87,24 @@ export function useTripRealtime(tripId: string, dayIds: string[]) {
           }
         },
       )
+      .on(
+        'postgres_changes' as any,
+        { event: '*', schema: 'public', table: 'expenses', filter },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['expenses', tripId] });
+          queryClient.invalidateQueries({ queryKey: ['tripSummary', tripId] });
+        },
+      )
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'expense_splits' },
+        (payload: any) => {
+          const expenseId = payload?.new?.expense_id ?? payload?.old?.expense_id;
+          if (expenseId) {
+            queryClient.invalidateQueries({ queryKey: ['expenses', tripId] });
+          }
+        },
+      )
       .subscribe();
 
     return () => {

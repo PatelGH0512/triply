@@ -84,8 +84,11 @@ export default function MessageInput({
       const sizeBytes = asset.fileSize ?? 0;
 
       if (sizeBytes > 10 * 1024 * 1024) {
+        console.warn('[ImagePicker] file too large:', sizeBytes);
         return;
       }
+
+      console.log('[ImagePicker] picked:', asset.uri, filename, sizeBytes);
 
       setPendingImage({ uri: asset.uri, filename });
     }

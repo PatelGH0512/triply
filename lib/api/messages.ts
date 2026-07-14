@@ -143,20 +143,34 @@ export async function uploadChatImage(
   filename: string,
   onProgress?: (progress: number) => void,
 ): Promise<string | null> {
-  const response = await fetch(uri);
-  const blob = await response.blob();
+  const ext = filename.split('.').pop()?.toLowerCase() ?? 'jpg';
+  const mimeType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : 'image/jpeg';
 
   const path = `chat/${tripId}/${Date.now()}_${filename}`;
 
+  const response = await fetch(uri);
+  const arrayBuffer = await response.arrayBuffer();
+
   const { error } = await supabase.storage
     .from('chat-images')
-    .upload(path, blob, {
-      contentType: blob.type || 'image/jpeg',
+    .upload(path, arrayBuffer, {
+      contentType: mimeType,
       upsert: false,
     });
 
-  if (error) return null;
+  if (error) {
+    console.error('[uploadChatImage] upload failed:', error.message);
+    return null;
+  }
 
-  const { data } = supabase.storage.from('chat-images').getPublicUrl(path);
-  return data.publicUrl ?? null;
+  const { data: signedData, error: signError } = await supabase.storage
+    .from('chat-images')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+
+  if (signError || !signedData?.signedUrl) {
+    console.error('[uploadChatImage] signed URL failed:', signError?.message);
+    return null;
+  }
+
+  return signedData.signedUrl;
 }
