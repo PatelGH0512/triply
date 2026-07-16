@@ -1,13 +1,90 @@
-import { View, Text, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import Colors from '@/constants/colors';
+import { useRef, useMemo, useEffect } from 'react';
+import { View, StyleSheet } from 'react-native';
+import BottomSheet from '@gorhom/bottom-sheet';
+import dayjs from 'dayjs';
+import { useTripContext } from '@/lib/context/TripContext';
+import { useDays, useActivitiesByTrip } from '@/hooks/useActivities';
+import { buildTripContext } from '@/lib/utils/buildTripContext';
+import { useAIChat } from '@/hooks/useAIChat';
+import ChatV1 from '@/components/ui/templates/chat-v1';
+import QuickPromptSheet from '@/components/ai/QuickPromptSheet';
 
 export default function AiScreen() {
+  const { tripId, trip } = useTripContext();
+  const quickPromptSheetRef = useRef<BottomSheet>(null);
+
+  const { data: days = [] } = useDays(tripId);
+  const { data: activities = [] } = useActivitiesByTrip(tripId);
+
+  const tripContext = useMemo(
+    () => buildTripContext(trip, days, activities),
+    [trip, days, activities],
+  );
+
+  const {
+    messages,
+    isLoading,
+    streamingId,
+    rateLimitHit,
+    sendMessage,
+    onStreamComplete,
+    clearChat,
+  } = useAIChat(tripContext);
+
+  useEffect(() => {
+    return () => {
+      clearChat();
+    };
+  }, []);
+
+  const destination = trip.trip_destinations[0]?.name ?? trip.name;
+
+  const dateRange = useMemo(() => {
+    const start = dayjs(trip.start_date).format('MMM D');
+    const end = dayjs(trip.end_date).format('MMM D');
+    return `${start} – ${end}`;
+  }, [trip.start_date, trip.end_date]);
+
+  const memberCount = trip.trip_members.length;
+
+  const totalDays = useMemo(
+    () => dayjs(trip.end_date).diff(dayjs(trip.start_date), 'day') + 1,
+    [trip.start_date, trip.end_date],
+  );
+
+  const nextEmptyDayNumber = useMemo(() => {
+    const activitiesByDay: Record<string, number> = {};
+    for (const a of activities) {
+      activitiesByDay[a.day_id] = (activitiesByDay[a.day_id] ?? 0) + 1;
+    }
+    const emptyDayIndex = days.findIndex((d) => !(activitiesByDay[d.id] > 0));
+    return emptyDayIndex >= 0 ? emptyDayIndex + 1 : days.length + 1;
+  }, [days, activities]);
+
   return (
     <View style={styles.container}>
-      <Ionicons name="sparkles-outline" size={48} color={Colors.neutral.placeholder} />
-      <Text style={styles.title}>AI Assistant</Text>
-      <Text style={styles.sub}>Coming soon</Text>
+      <ChatV1
+        destination={destination}
+        dateRange={dateRange}
+        memberCount={memberCount}
+        totalDays={totalDays}
+        onPressPlus={() => quickPromptSheetRef.current?.expand()}
+        messages={messages}
+        isLoading={isLoading}
+        streamingId={streamingId}
+        rateLimitHit={rateLimitHit}
+        sendMessage={sendMessage}
+        onStreamComplete={onStreamComplete}
+      />
+      <QuickPromptSheet
+        sheetRef={quickPromptSheetRef}
+        destination={destination}
+        tripStartDate={trip.start_date}
+        nextEmptyDayNumber={nextEmptyDayNumber}
+        onSelectPrompt={(prompt) => {
+          sendMessage(prompt);
+        }}
+      />
     </View>
   );
 }
@@ -15,11 +92,5 @@ export default function AiScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Colors.neutral.background,
-    gap: 8,
   },
-  title: { fontSize: 18, fontWeight: '700', color: Colors.text.secondary },
-  sub: { fontSize: 14, color: Colors.text.tertiary },
 });

@@ -1,4 +1,5 @@
 import { forwardRef, useState, useEffect, useCallback, useRef } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -27,6 +28,7 @@ interface ExpenseSheetProps {
   tripId: string;
   defaultCurrency?: string;
   editingExpense?: Expense | null;
+  resetKey?: number;
   onSubmitCreate: (input: CreateExpenseInput) => void;
   onSubmitUpdate: (input: UpdateExpenseInput) => void;
   onClose: () => void;
@@ -47,433 +49,410 @@ function fmt(amount: number) {
   }).format(amount);
 }
 
-export const ExpenseSheet = forwardRef<BottomSheet, ExpenseSheetProps>(
-  function ExpenseSheet(
-    {
-      members,
-      currentUserId,
-      tripId,
-      defaultCurrency = 'USD',
-      editingExpense,
-      onSubmitCreate,
-      onSubmitUpdate,
-      onClose,
-      isLoading = false,
-    },
-    ref,
-  ) {
-    const allMemberIds = members.map((m) => m.id);
-    const isEditing = !!editingExpense;
+export const ExpenseSheet = forwardRef<BottomSheet, ExpenseSheetProps>(function ExpenseSheet(
+  {
+    members,
+    currentUserId,
+    tripId,
+    defaultCurrency = 'USD',
+    editingExpense,
+    resetKey,
+    onSubmitCreate,
+    onSubmitUpdate,
+    onClose,
+    isLoading = false,
+  },
+  ref,
+) {
+  const allMemberIds = members.map((m) => m.id);
+  const isEditing = !!editingExpense;
 
-    const [amountStr, setAmountStr] = useState('');
-    const [description, setDescription] = useState('');
-    const [category, setCategory] = useState<ExpenseCategory>(ExpenseCategory.Food);
-    const [paidBy, setPaidBy] = useState(currentUserId);
-    const [selectedMembers, setSelectedMembers] = useState<string[]>(allMemberIds);
-    const [splitType, setSplitType] = useState<SplitType>('equal');
-    const [splitValues, setSplitValues] = useState<Record<string, string>>({});
-    const [errors, setErrors] = useState<string[]>([]);
+  const [amountStr, setAmountStr] = useState('');
+  const [description, setDescription] = useState('');
+  const [category, setCategory] = useState<ExpenseCategory>(ExpenseCategory.Food);
+  const [paidBy, setPaidBy] = useState(currentUserId);
+  const [selectedMembers, setSelectedMembers] = useState<string[]>(allMemberIds);
+  const [splitType, setSplitType] = useState<SplitType>('equal');
+  const [splitValues, setSplitValues] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<string[]>([]);
 
-    useEffect(() => {
-      if (editingExpense) {
-        setAmountStr(editingExpense.amount.toFixed(2));
-        setDescription(editingExpense.title);
-        setCategory(editingExpense.category);
-        setPaidBy(editingExpense.paid_by);
-        const splitMemberIds =
-          editingExpense.splits
-            ?.filter((s) => s.user_id !== editingExpense.paid_by || s.amount === 0)
-            .map((s) => s.user_id) ?? allMemberIds;
-        setSelectedMembers(
-          splitMemberIds.length > 0 ? splitMemberIds : allMemberIds,
-        );
-        setSplitType('equal');
-        setSplitValues({});
-        setErrors([]);
-      } else {
-        resetForm();
-      }
-    }, [editingExpense]);
-
-    function resetForm() {
-      setAmountStr('');
-      setDescription('');
-      setCategory(ExpenseCategory.Food);
-      setPaidBy(currentUserId);
-      setSelectedMembers(allMemberIds);
+  useEffect(() => {
+    if (editingExpense) {
+      setAmountStr(editingExpense.amount.toFixed(2));
+      setDescription(editingExpense.title);
+      setCategory(editingExpense.category);
+      setPaidBy(editingExpense.paid_by);
+      const splitMemberIds =
+        editingExpense.splits
+          ?.filter((s) => s.user_id !== editingExpense.paid_by || s.amount === 0)
+          .map((s) => s.user_id) ?? allMemberIds;
+      setSelectedMembers(splitMemberIds.length > 0 ? splitMemberIds : allMemberIds);
       setSplitType('equal');
       setSplitValues({});
       setErrors([]);
+    } else {
+      resetForm();
     }
+  }, [editingExpense, resetKey]);
 
-    const totalAmount = parseFloat(amountStr) || 0;
+  function resetForm() {
+    setAmountStr('');
+    setDescription('');
+    setCategory(ExpenseCategory.Food);
+    setPaidBy(currentUserId);
+    setSelectedMembers(allMemberIds);
+    setSplitType('equal');
+    setSplitValues({});
+    setErrors([]);
+  }
 
-    function toggleMember(userId: string) {
-      setSelectedMembers((prev) => {
-        if (prev.includes(userId)) {
-          if (prev.length === 1) return prev;
-          return prev.filter((id) => id !== userId);
-        }
-        return [...prev, userId];
+  const totalAmount = parseFloat(amountStr) || 0;
+
+  function toggleMember(userId: string) {
+    setSelectedMembers((prev) => {
+      if (prev.includes(userId)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((id) => id !== userId);
+      }
+      return [...prev, userId];
+    });
+  }
+
+  function updateSplitValue(userId: string, val: string) {
+    setSplitValues((prev) => ({ ...prev, [userId]: val }));
+  }
+
+  const pctTotal = selectedMembers.reduce(
+    (sum, uid) => sum + (parseFloat(splitValues[uid] ?? '0') || 0),
+    0,
+  );
+
+  const customTotal = selectedMembers.reduce(
+    (sum, uid) => sum + (parseFloat(splitValues[uid] ?? '0') || 0),
+    0,
+  );
+
+  const remaining = Math.round((totalAmount - customTotal) * 100) / 100;
+  const pctRemaining = Math.round((100 - pctTotal) * 10) / 10;
+
+  function validate(): boolean {
+    const errs: string[] = [];
+    if (totalAmount <= 0) errs.push('Enter a valid amount.');
+    if (!description.trim()) errs.push('Description is required.');
+    if (selectedMembers.length === 0) errs.push('Select at least one person to split with.');
+    if (splitType === 'percentage' && Math.abs(pctTotal - 100) > 0.1) {
+      errs.push(`Percentages must total 100% (currently ${pctTotal.toFixed(1)}%).`);
+    }
+    if (splitType === 'custom' && Math.abs(remaining) > 0.01) {
+      errs.push(`Custom amounts must total ${fmt(totalAmount)} (${fmt(remaining)} remaining).`);
+    }
+    setErrors(errs);
+    return errs.length === 0;
+  }
+
+  function buildValues(): Record<string, number> {
+    const vals: Record<string, number> = {};
+    for (const uid of selectedMembers) {
+      vals[uid] = parseFloat(splitValues[uid] ?? '0') || 0;
+    }
+    return vals;
+  }
+
+  function handleSubmit() {
+    if (!validate()) return;
+    const values = buildValues();
+    const allSplitMembers = Array.from(new Set([...selectedMembers, paidBy]));
+
+    if (isEditing && editingExpense) {
+      onSubmitUpdate({
+        expenseId: editingExpense.id,
+        activityId: editingExpense.activity_id,
+        paidBy,
+        title: description.trim(),
+        amount: totalAmount,
+        currency: defaultCurrency,
+        category,
+        members: allSplitMembers,
+        splitType,
+        values,
+      });
+    } else {
+      onSubmitCreate({
+        tripId,
+        paidBy,
+        title: description.trim(),
+        amount: totalAmount,
+        currency: defaultCurrency,
+        category,
+        members: allSplitMembers,
+        splitType,
+        values,
       });
     }
+  }
 
-    function updateSplitValue(userId: string, val: string) {
-      setSplitValues((prev) => ({ ...prev, [userId]: val }));
-    }
+  const renderBackdrop = useCallback(
+    (props: BottomSheetBackdropProps) => (
+      <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.35} />
+    ),
+    [],
+  );
 
-    const pctTotal = selectedMembers.reduce(
-      (sum, uid) => sum + (parseFloat(splitValues[uid] ?? '0') || 0),
-      0,
-    );
+  const equalShare = selectedMembers.length > 0 ? totalAmount / selectedMembers.length : 0;
+  const insets = useSafeAreaInsets();
 
-    const customTotal = selectedMembers.reduce(
-      (sum, uid) => sum + (parseFloat(splitValues[uid] ?? '0') || 0),
-      0,
-    );
-
-    const remaining = Math.round((totalAmount - customTotal) * 100) / 100;
-    const pctRemaining = Math.round((100 - pctTotal) * 10) / 10;
-
-    function validate(): boolean {
-      const errs: string[] = [];
-      if (totalAmount <= 0) errs.push('Enter a valid amount.');
-      if (!description.trim()) errs.push('Description is required.');
-      if (selectedMembers.length === 0) errs.push('Select at least one person to split with.');
-      if (splitType === 'percentage' && Math.abs(pctTotal - 100) > 0.1) {
-        errs.push(`Percentages must total 100% (currently ${pctTotal.toFixed(1)}%).`);
-      }
-      if (splitType === 'custom' && Math.abs(remaining) > 0.01) {
-        errs.push(`Custom amounts must total ${fmt(totalAmount)} (${fmt(remaining)} remaining).`);
-      }
-      setErrors(errs);
-      return errs.length === 0;
-    }
-
-    function buildValues(): Record<string, number> {
-      const vals: Record<string, number> = {};
-      for (const uid of selectedMembers) {
-        vals[uid] = parseFloat(splitValues[uid] ?? '0') || 0;
-      }
-      return vals;
-    }
-
-    function handleSubmit() {
-      if (!validate()) return;
-      const values = buildValues();
-      const allSplitMembers = Array.from(new Set([...selectedMembers, paidBy]));
-
-      if (isEditing && editingExpense) {
-        onSubmitUpdate({
-          expenseId: editingExpense.id,
-          activityId: editingExpense.activity_id,
-          paidBy,
-          title: description.trim(),
-          amount: totalAmount,
-          currency: defaultCurrency,
-          category,
-          members: allSplitMembers,
-          splitType,
-          values,
-        });
-      } else {
-        onSubmitCreate({
-          tripId,
-          paidBy,
-          title: description.trim(),
-          amount: totalAmount,
-          currency: defaultCurrency,
-          category,
-          members: allSplitMembers,
-          splitType,
-          values,
-        });
-      }
-    }
-
-    const renderBackdrop = useCallback(
-      (props: BottomSheetBackdropProps) => (
-        <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} opacity={0.35} />
-      ),
-      [],
-    );
-
-    const equalShare =
-      selectedMembers.length > 0 ? totalAmount / selectedMembers.length : 0;
-
-    return (
-      <BottomSheet
-        ref={ref}
-        index={-1}
-        snapPoints={['92%']}
-        enablePanDownToClose
-        onClose={onClose}
-        backdropComponent={renderBackdrop}
-        handleIndicatorStyle={styles.handle}
-        backgroundStyle={styles.sheetBg}
-        keyboardBehavior="interactive"
-        keyboardBlurBehavior="restore"
+  return (
+    <BottomSheet
+      ref={ref}
+      index={-1}
+      snapPoints={['92%']}
+      enablePanDownToClose
+      onClose={onClose}
+      backdropComponent={renderBackdrop}
+      handleIndicatorStyle={styles.handle}
+      backgroundStyle={styles.sheetBg}
+      keyboardBehavior="interactive"
+      keyboardBlurBehavior="restore"
+    >
+      <BottomSheetScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 90 }]}
+        keyboardShouldPersistTaps="handled"
       >
-        <BottomSheetScrollView
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>
-              {isEditing ? 'Edit Expense' : 'Add Expense'}
-            </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={12} style={styles.closeBtn}>
-              <Text style={styles.closeText}>✕</Text>
-            </TouchableOpacity>
-          </View>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>{isEditing ? 'Edit Expense' : 'Add Expense'}</Text>
+          <TouchableOpacity onPress={onClose} hitSlop={12} style={styles.closeBtn}>
+            <Text style={styles.closeText}>✕</Text>
+          </TouchableOpacity>
+        </View>
 
-          {/* Amount */}
-          <View style={styles.amountWrap}>
-            <Text style={styles.currencySymbol}>$</Text>
-            <TextInput
-              style={styles.amountInput}
-              value={amountStr}
-              onChangeText={setAmountStr}
-              placeholder="0.00"
-              placeholderTextColor={colors.neutral[300]}
-              keyboardType="decimal-pad"
-              returnKeyType="done"
-            />
-          </View>
+        {/* Amount */}
+        <View style={styles.amountWrap}>
+          <Text style={styles.currencySymbol}>$</Text>
+          <TextInput
+            style={styles.amountInput}
+            value={amountStr}
+            onChangeText={setAmountStr}
+            placeholder="0.00"
+            placeholderTextColor={colors.neutral[300]}
+            keyboardType="decimal-pad"
+            returnKeyType="done"
+          />
+        </View>
 
-          {/* Description */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Description</Text>
-            <TextInput
-              style={styles.textInput}
-              value={description}
-              onChangeText={setDescription}
-              placeholder="e.g. Nobu dinner, Grab to airport"
-              placeholderTextColor={colors.neutral[400]}
-              returnKeyType="done"
-            />
-          </View>
+        {/* Description */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Description</Text>
+          <TextInput
+            style={styles.textInput}
+            value={description}
+            onChangeText={setDescription}
+            placeholder="e.g. Nobu dinner, Grab to airport"
+            placeholderTextColor={colors.neutral[400]}
+            returnKeyType="done"
+          />
+        </View>
 
-          {/* Category */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Category</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryRow}
-            >
-              {CATEGORIES.map((cat) => {
-                const meta = CATEGORY_META[cat];
-                const isActive = category === cat;
-                return (
-                  <TouchableOpacity
-                    key={cat}
-                    style={[
-                      styles.categoryPill,
-                      isActive && { backgroundColor: meta.bg, borderColor: meta.color },
-                    ]}
-                    onPress={() => setCategory(cat)}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={styles.categoryEmoji}>{meta.emoji}</Text>
-                    <Text
-                      style={[
-                        styles.categoryLabel,
-                        isActive && { color: meta.color, fontFamily: typography.fonts.semibold },
-                      ]}
-                    >
-                      {cat.charAt(0).toUpperCase() + cat.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Paid by */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Paid by</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.paidByRow}
-            >
-              {members.map((member) => {
-                const isActive = paidBy === member.id;
-                return (
-                  <TouchableOpacity
-                    key={member.id}
-                    style={[styles.paidByChip, isActive && styles.paidByChipActive]}
-                    onPress={() => setPaidBy(member.id)}
-                    activeOpacity={0.75}
-                  >
-                    <Avatar uri={member.avatar_url} name={member.full_name} size="sm" />
-                    <Text
-                      style={[
-                        styles.paidByName,
-                        isActive && styles.paidByNameActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {member.id === currentUserId ? 'You' : member.full_name.split(' ')[0]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Split between */}
-          <View style={styles.section}>
-            <SplitSelector
-              members={members}
-              selected={selectedMembers}
-              onToggle={toggleMember}
-            />
-          </View>
-
-          {/* Split type */}
-          <View style={styles.section}>
-            <Text style={styles.label}>Split type</Text>
-            <View style={styles.segmented}>
-              {SPLIT_TYPES.map((st) => (
+        {/* Category */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Category</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRow}
+          >
+            {CATEGORIES.map((cat) => {
+              const meta = CATEGORY_META[cat];
+              const isActive = category === cat;
+              return (
                 <TouchableOpacity
-                  key={st.key}
-                  style={[styles.segment, splitType === st.key && styles.segmentActive]}
-                  onPress={() => setSplitType(st.key)}
-                  activeOpacity={0.8}
+                  key={cat}
+                  style={[
+                    styles.categoryPill,
+                    isActive && { backgroundColor: meta.bg, borderColor: meta.color },
+                  ]}
+                  onPress={() => setCategory(cat)}
+                  activeOpacity={0.75}
                 >
+                  <Text style={styles.categoryEmoji}>{meta.emoji}</Text>
                   <Text
                     style={[
-                      styles.segmentText,
-                      splitType === st.key && styles.segmentTextActive,
+                      styles.categoryLabel,
+                      isActive && { color: meta.color, fontFamily: typography.fonts.semibold },
                     ]}
                   >
-                    {st.label}
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
                   </Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-            {/* Per-person breakdown */}
-            {splitType === 'equal' && totalAmount > 0 && selectedMembers.length > 0 && (
-              <View style={styles.preview}>
-                {selectedMembers.map((uid) => {
-                  const member = members.find((m) => m.id === uid);
-                  return (
-                    <View key={uid} style={styles.previewRow}>
-                      <Text style={styles.previewName}>
-                        {uid === currentUserId ? 'You' : member?.full_name.split(' ')[0] ?? uid}
-                      </Text>
-                      <Text style={styles.previewAmount}>${fmt(equalShare)}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            )}
-
-            {splitType === 'percentage' && (
-              <View style={styles.preview}>
-                {selectedMembers.map((uid) => {
-                  const member = members.find((m) => m.id === uid);
-                  const pct = parseFloat(splitValues[uid] ?? '0') || 0;
-                  const dollarAmt = totalAmount > 0 ? (pct / 100) * totalAmount : 0;
-                  return (
-                    <View key={uid} style={styles.previewRow}>
-                      <Text style={styles.previewName}>
-                        {uid === currentUserId ? 'You' : member?.full_name.split(' ')[0] ?? uid}
-                      </Text>
-                      <TextInput
-                        style={styles.splitInput}
-                        value={splitValues[uid] ?? ''}
-                        onChangeText={(v) => updateSplitValue(uid, v)}
-                        placeholder="0"
-                        placeholderTextColor={colors.neutral[400]}
-                        keyboardType="decimal-pad"
-                        returnKeyType="done"
-                      />
-                      <Text style={styles.splitUnit}>%</Text>
-                      {totalAmount > 0 && (
-                        <Text style={styles.previewAmount}>${fmt(dollarAmt)}</Text>
-                      )}
-                    </View>
-                  );
-                })}
-                <Text
-                  style={[
-                    styles.totalIndicator,
-                    Math.abs(pctRemaining) < 0.1 ? styles.totalOk : styles.totalWarn,
-                  ]}
+        {/* Paid by */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Paid by</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.paidByRow}
+          >
+            {members.map((member) => {
+              const isActive = paidBy === member.id;
+              return (
+                <TouchableOpacity
+                  key={member.id}
+                  style={[styles.paidByChip, isActive && styles.paidByChipActive]}
+                  onPress={() => setPaidBy(member.id)}
+                  activeOpacity={0.75}
                 >
-                  {Math.abs(pctRemaining) < 0.1
-                    ? '✓ 100%'
-                    : `${pctRemaining > 0 ? '+' : ''}${pctRemaining.toFixed(1)}% remaining`}
-                </Text>
-              </View>
-            )}
+                  <Avatar uri={member.avatar_url} name={member.full_name} size="sm" />
+                  <Text
+                    style={[styles.paidByName, isActive && styles.paidByNameActive]}
+                    numberOfLines={1}
+                  >
+                    {member.id === currentUserId ? 'You' : member.full_name.split(' ')[0]}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-            {splitType === 'custom' && (
-              <View style={styles.preview}>
-                {selectedMembers.map((uid) => {
-                  const member = members.find((m) => m.id === uid);
-                  return (
-                    <View key={uid} style={styles.previewRow}>
-                      <Text style={styles.previewName}>
-                        {uid === currentUserId ? 'You' : member?.full_name.split(' ')[0] ?? uid}
-                      </Text>
-                      <Text style={styles.splitUnit}>$</Text>
-                      <TextInput
-                        style={styles.splitInput}
-                        value={splitValues[uid] ?? ''}
-                        onChangeText={(v) => updateSplitValue(uid, v)}
-                        placeholder="0.00"
-                        placeholderTextColor={colors.neutral[400]}
-                        keyboardType="decimal-pad"
-                        returnKeyType="done"
-                      />
-                    </View>
-                  );
-                })}
+        {/* Split between */}
+        <View style={styles.section}>
+          <SplitSelector members={members} selected={selectedMembers} onToggle={toggleMember} />
+        </View>
+
+        {/* Split type */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Split type</Text>
+          <View style={styles.segmented}>
+            {SPLIT_TYPES.map((st) => (
+              <TouchableOpacity
+                key={st.key}
+                style={[styles.segment, splitType === st.key && styles.segmentActive]}
+                onPress={() => setSplitType(st.key)}
+                activeOpacity={0.8}
+              >
                 <Text
-                  style={[
-                    styles.totalIndicator,
-                    Math.abs(remaining) < 0.01 ? styles.totalOk : styles.totalWarn,
-                  ]}
+                  style={[styles.segmentText, splitType === st.key && styles.segmentTextActive]}
                 >
-                  {Math.abs(remaining) < 0.01
-                    ? '✓ Fully allocated'
-                    : `$${fmt(Math.abs(remaining))} ${remaining > 0 ? 'remaining' : 'over'}`}
+                  {st.label}
                 </Text>
-              </View>
-            )}
+              </TouchableOpacity>
+            ))}
           </View>
 
-          {/* Errors */}
-          {errors.length > 0 && (
-            <View style={styles.errorBox}>
-              {errors.map((e, i) => (
-                <Text key={i} style={styles.errorText}>
-                  · {e}
-                </Text>
-              ))}
+          {/* Per-person breakdown */}
+          {splitType === 'equal' && totalAmount > 0 && selectedMembers.length > 0 && (
+            <View style={styles.preview}>
+              {selectedMembers.map((uid) => {
+                const member = members.find((m) => m.id === uid);
+                return (
+                  <View key={uid} style={styles.previewRow}>
+                    <Text style={styles.previewName}>
+                      {uid === currentUserId ? 'You' : (member?.full_name.split(' ')[0] ?? uid)}
+                    </Text>
+                    <Text style={styles.previewAmount}>${fmt(equalShare)}</Text>
+                  </View>
+                );
+              })}
             </View>
           )}
 
-          {/* Submit */}
-          <Button
-            onPress={handleSubmit}
-            loading={isLoading}
-            style={styles.submitBtn}
-          >
-            {isEditing ? 'Save Changes' : 'Add Expense'}
-          </Button>
+          {splitType === 'percentage' && (
+            <View style={styles.preview}>
+              {selectedMembers.map((uid) => {
+                const member = members.find((m) => m.id === uid);
+                const pct = parseFloat(splitValues[uid] ?? '0') || 0;
+                const dollarAmt = totalAmount > 0 ? (pct / 100) * totalAmount : 0;
+                return (
+                  <View key={uid} style={styles.previewRow}>
+                    <Text style={styles.previewName}>
+                      {uid === currentUserId ? 'You' : (member?.full_name.split(' ')[0] ?? uid)}
+                    </Text>
+                    <TextInput
+                      style={styles.splitInput}
+                      value={splitValues[uid] ?? ''}
+                      onChangeText={(v) => updateSplitValue(uid, v)}
+                      placeholder="0"
+                      placeholderTextColor={colors.neutral[400]}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                    />
+                    <Text style={styles.splitUnit}>%</Text>
+                    {totalAmount > 0 && <Text style={styles.previewAmount}>${fmt(dollarAmt)}</Text>}
+                  </View>
+                );
+              })}
+              <Text
+                style={[
+                  styles.totalIndicator,
+                  Math.abs(pctRemaining) < 0.1 ? styles.totalOk : styles.totalWarn,
+                ]}
+              >
+                {Math.abs(pctRemaining) < 0.1
+                  ? '✓ 100%'
+                  : `${pctRemaining > 0 ? '+' : ''}${pctRemaining.toFixed(1)}% remaining`}
+              </Text>
+            </View>
+          )}
 
-          <View style={{ height: spacing[8] }} />
-        </BottomSheetScrollView>
-      </BottomSheet>
-    );
-  },
-);
+          {splitType === 'custom' && (
+            <View style={styles.preview}>
+              {selectedMembers.map((uid) => {
+                const member = members.find((m) => m.id === uid);
+                return (
+                  <View key={uid} style={styles.previewRow}>
+                    <Text style={styles.previewName}>
+                      {uid === currentUserId ? 'You' : (member?.full_name.split(' ')[0] ?? uid)}
+                    </Text>
+                    <Text style={styles.splitUnit}>$</Text>
+                    <TextInput
+                      style={styles.splitInput}
+                      value={splitValues[uid] ?? ''}
+                      onChangeText={(v) => updateSplitValue(uid, v)}
+                      placeholder="0.00"
+                      placeholderTextColor={colors.neutral[400]}
+                      keyboardType="decimal-pad"
+                      returnKeyType="done"
+                    />
+                  </View>
+                );
+              })}
+              <Text
+                style={[
+                  styles.totalIndicator,
+                  Math.abs(remaining) < 0.01 ? styles.totalOk : styles.totalWarn,
+                ]}
+              >
+                {Math.abs(remaining) < 0.01
+                  ? '✓ Fully allocated'
+                  : `$${fmt(Math.abs(remaining))} ${remaining > 0 ? 'remaining' : 'over'}`}
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Errors */}
+        {errors.length > 0 && (
+          <View style={styles.errorBox}>
+            {errors.map((e, i) => (
+              <Text key={i} style={styles.errorText}>
+                · {e}
+              </Text>
+            ))}
+          </View>
+        )}
+
+        {/* Submit */}
+        <Button onPress={handleSubmit} loading={isLoading} style={styles.submitBtn}>
+          {isEditing ? 'Save Changes' : 'Add Expense'}
+        </Button>
+      </BottomSheetScrollView>
+    </BottomSheet>
+  );
+});
 
 const styles = StyleSheet.create({
   sheetBg: {

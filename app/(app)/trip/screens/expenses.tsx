@@ -48,6 +48,7 @@ export default function ExpensesScreen() {
   const settleSheetRef = useRef<BottomSheet>(null);
 
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [expenseResetKey, setExpenseResetKey] = useState(0);
   const [settleTarget, setSettleTarget] = useState<SettleTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Expense | null>(null);
 
@@ -74,6 +75,7 @@ export default function ExpensesScreen() {
 
   function openAddExpense() {
     setEditingExpense(null);
+    setExpenseResetKey((k) => k + 1);
     expenseSheetRef.current?.expand();
   }
 
@@ -247,6 +249,7 @@ export default function ExpensesScreen() {
         tripId={tripId}
         defaultCurrency={currency}
         editingExpense={editingExpense}
+        resetKey={expenseResetKey}
         onSubmitCreate={handleCreateExpense}
         onSubmitUpdate={handleUpdateExpense}
         onClose={() => expenseSheetRef.current?.close()}

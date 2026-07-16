@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getDays,
   getActivitiesByDay,
+  getActivitiesByTrip,
   createActivity,
   updateActivity,
   deleteActivity,
@@ -22,6 +23,14 @@ export function useActivities(dayId: string) {
     queryKey: ['activities', dayId],
     queryFn: () => getActivitiesByDay(dayId),
     enabled: !!dayId,
+  });
+}
+
+export function useActivitiesByTrip(tripId: string) {
+  return useQuery({
+    queryKey: ['activitiesByTrip', tripId],
+    queryFn: () => getActivitiesByTrip(tripId),
+    enabled: !!tripId,
   });
 }
 
