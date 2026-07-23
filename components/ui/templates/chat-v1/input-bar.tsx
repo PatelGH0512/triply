@@ -17,6 +17,8 @@ const MAX_LINES = 5;
 interface InputBarProps {
   onSend: (message: string) => void;
   onPressPlus?: () => void;
+  onStop?: () => void;
+  isGenerating?: boolean;
   disabled?: boolean;
   disabledPlaceholder?: string;
   value?: string;
@@ -26,6 +28,8 @@ interface InputBarProps {
 export const InputBar: React.FC<InputBarProps> = ({
   onSend,
   onPressPlus,
+  onStop,
+  isGenerating = false,
   disabled = false,
   disabledPlaceholder,
   value: controlledValue,
@@ -100,7 +104,18 @@ export const InputBar: React.FC<InputBarProps> = ({
           </View>
 
           <View style={styles.rightIcons}>
-            {value.length === 0 ? (
+            {isGenerating ? (
+              <Pressable
+                onPress={onStop}
+                style={({ pressed }) => [
+                  styles.sendCircle,
+                  styles.stopCircle,
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Ionicons name="stop" size={iconSize - 6} color={colors.neutral[0]} />
+              </Pressable>
+            ) : value.length === 0 ? (
               <View style={[styles.sendCircle, styles.sendCircleInactive]}>
                 {Platform.OS === 'ios' ? (
                   <SymbolView name="arrow.up" tintColor={colors.neutral[300]} size={iconSize - 4} />
@@ -198,5 +213,8 @@ const styles = StyleSheet.create({
 
   sendCircleInactive: {
     backgroundColor: colors.neutral[100],
+  },
+  stopCircle: {
+    backgroundColor: colors.primary[400],
   },
 });

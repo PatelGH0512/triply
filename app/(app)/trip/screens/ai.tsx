@@ -1,4 +1,5 @@
 import { useRef, useMemo, useEffect } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, StyleSheet } from 'react-native';
 import BottomSheet from '@gorhom/bottom-sheet';
 import dayjs from 'dayjs';
@@ -8,9 +9,12 @@ import { buildTripContext } from '@/lib/utils/buildTripContext';
 import { useAIChat } from '@/hooks/useAIChat';
 import ChatV1 from '@/components/ui/templates/chat-v1';
 import QuickPromptSheet from '@/components/ai/QuickPromptSheet';
+import { NAV_TOTAL_HEIGHT } from '@/components/trip/TripBottomNav';
 
 export default function AiScreen() {
   const { tripId, trip } = useTripContext();
+  const insets = useSafeAreaInsets();
+  const bottomInset = insets.bottom + NAV_TOTAL_HEIGHT;
   const quickPromptSheetRef = useRef<BottomSheet>(null);
 
   const { data: days = [] } = useDays(tripId);
@@ -27,6 +31,7 @@ export default function AiScreen() {
     streamingId,
     rateLimitHit,
     sendMessage,
+    cancelMessage,
     onStreamComplete,
     clearChat,
   } = useAIChat(tripContext);
@@ -62,7 +67,7 @@ export default function AiScreen() {
   }, [days, activities]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingBottom: bottomInset }]}>
       <ChatV1
         destination={destination}
         dateRange={dateRange}
@@ -74,6 +79,7 @@ export default function AiScreen() {
         streamingId={streamingId}
         rateLimitHit={rateLimitHit}
         sendMessage={sendMessage}
+        cancelMessage={cancelMessage}
         onStreamComplete={onStreamComplete}
       />
       <QuickPromptSheet

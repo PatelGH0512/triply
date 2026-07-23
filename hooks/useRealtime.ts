@@ -40,7 +40,7 @@ export function useTripRealtime(tripId: string, dayIds: string[]) {
     const filter = `trip_id=eq.${tripId}`;
 
     const channel = supabase
-      .channel(`trip-realtime-${tripId}`)
+      .channel(`trip-realtime-${tripId}-${Date.now()}`)
       .on(
         'postgres_changes' as any,
         { event: '*', schema: 'public', table: 'activities', filter },

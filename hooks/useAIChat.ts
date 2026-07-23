@@ -50,6 +50,7 @@ interface UseAIChatReturn {
   streamingId: string | null;
   rateLimitHit: boolean;
   sendMessage: (text: string) => Promise<void>;
+  cancelMessage: () => void;
   clearChat: () => void;
   onStreamComplete: () => void;
 }
@@ -60,6 +61,7 @@ export function useAIChat(tripContext: string): UseAIChatReturn {
   const [streamingId, setStreamingId] = useState<string | null>(null);
   const [rateLimitHit, setRateLimitHit] = useState(false);
   const claudeHistory = useRef<ClaudeMessage[]>([]);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const { showToast } = useToast();
 
   const sendMessage = useCallback(
@@ -80,12 +82,15 @@ export function useAIChat(tripContext: string): UseAIChatReturn {
 
       setIsLoading(true);
 
+      abortControllerRef.current = new AbortController();
+
       try {
         const { data, error } = await supabase.functions.invoke('ai-chat', {
           body: {
             messages: claudeHistory.current,
             tripContext,
           },
+          signal: abortControllerRef.current.signal,
         });
 
         if (error) {
@@ -128,6 +133,9 @@ export function useAIChat(tripContext: string): UseAIChatReturn {
           claudeHistory.current = claudeHistory.current.slice(2);
         }
       } catch (err: any) {
+        if (err?.name === 'AbortError' || err?.message?.includes('aborted')) {
+          return;
+        }
         const status = err?.status ?? err?.context?.status;
         if (status === 429) {
           setRateLimitHit(true);
@@ -157,6 +165,18 @@ export function useAIChat(tripContext: string): UseAIChatReturn {
     [isLoading, rateLimitHit, tripContext, showToast],
   );
 
+  const cancelMessage = useCallback(() => {
+    if (isLoading) {
+      abortControllerRef.current?.abort();
+      setIsLoading(false);
+      setMessages((prev) => prev.slice(1));
+      claudeHistory.current = claudeHistory.current.slice(0, -1);
+    }
+    if (streamingId) {
+      setStreamingId(null);
+    }
+  }, [isLoading, streamingId]);
+
   const clearChat = useCallback(() => {
     setMessages([]);
     setIsLoading(false);
@@ -175,6 +195,7 @@ export function useAIChat(tripContext: string): UseAIChatReturn {
     streamingId,
     rateLimitHit,
     sendMessage,
+    cancelMessage,
     clearChat,
     onStreamComplete,
   };

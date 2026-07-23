@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator, useWindowDimensions } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { GiftedChat, IMessage, Bubble } from 'react-native-gifted-chat';
 import { StreamingText } from './streaming-text';
 import { InputBar } from './input-bar';
@@ -22,6 +23,7 @@ interface ChatV1Props {
   streamingId: string | null;
   rateLimitHit: boolean;
   sendMessage: (text: string) => Promise<void>;
+  cancelMessage: () => void;
   onStreamComplete: () => void;
 }
 
@@ -36,8 +38,10 @@ export default function ChatV1({
   streamingId,
   rateLimitHit,
   sendMessage,
+  cancelMessage,
   onStreamComplete,
 }: ChatV1Props) {
+  const isGenerating = isLoading || !!streamingId;
   const { height } = useWindowDimensions();
 
   const [inputValue, setInputValue] = useState('');
@@ -127,11 +131,17 @@ export default function ChatV1({
             );
           }
 
+          if (msg.user._id === 2) {
+            return (
+              <View style={styles.msgPad}>
+                <Markdown style={markdownStyles}>{msg.text ?? ''}</Markdown>
+              </View>
+            );
+          }
+
           return (
             <View style={styles.msgPad}>
-              <Text style={msg.user._id === 1 ? styles.userMsgText : styles.aiMsgText}>
-                {msg.text}
-              </Text>
+              <Text style={styles.userMsgText}>{msg.text}</Text>
             </View>
           );
         }}
@@ -175,6 +185,8 @@ export default function ChatV1({
           <InputBar
             onSend={handleSend}
             onPressPlus={onPressPlus}
+            onStop={cancelMessage}
+            isGenerating={isGenerating}
             disabled={rateLimitHit}
             disabledPlaceholder="Daily limit reached · resets tomorrow"
             value={inputValue}
@@ -306,3 +318,82 @@ const styles = StyleSheet.create({
     paddingBottom: spacing[4],
   },
 });
+
+const markdownStyles = {
+  body: {
+    color: colors.neutral[800],
+    fontSize: typography.sizes.base,
+    fontFamily: typography.fonts.regular,
+    lineHeight: typography.sizes.base * 1.55,
+  },
+  paragraph: {
+    marginTop: 0,
+    marginBottom: 6,
+  },
+  strong: {
+    fontFamily: typography.fonts.semibold,
+    color: colors.neutral[900],
+  },
+  em: {
+    fontFamily: typography.fonts.regular,
+    fontStyle: 'italic' as const,
+  },
+  heading1: {
+    fontSize: typography.sizes.lg,
+    fontFamily: typography.fonts.bold,
+    color: colors.neutral[900],
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  heading2: {
+    fontSize: typography.sizes.md,
+    fontFamily: typography.fonts.semibold,
+    color: colors.neutral[900],
+    marginBottom: 4,
+    marginTop: 6,
+  },
+  heading3: {
+    fontSize: typography.sizes.base,
+    fontFamily: typography.fonts.semibold,
+    color: colors.neutral[900],
+    marginBottom: 2,
+    marginTop: 4,
+  },
+  bullet_list: {
+    marginVertical: 4,
+  },
+  ordered_list: {
+    marginVertical: 4,
+  },
+  list_item: {
+    marginBottom: 2,
+  },
+  bullet_list_icon: {
+    color: colors.primary[400],
+    marginTop: 5,
+  },
+  code_inline: {
+    backgroundColor: colors.neutral[100],
+    color: colors.neutral[700],
+    fontSize: typography.sizes.sm,
+    borderRadius: 4,
+    paddingHorizontal: 4,
+  },
+  fence: {
+    backgroundColor: colors.neutral[100],
+    borderRadius: 8,
+    padding: 10,
+    marginVertical: 6,
+  },
+  code_block: {
+    backgroundColor: colors.neutral[100],
+    borderRadius: 8,
+    padding: 10,
+    marginVertical: 6,
+  },
+  hr: {
+    backgroundColor: colors.neutral[200],
+    height: 1,
+    marginVertical: 8,
+  },
+};
